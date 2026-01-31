@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>IA Apprenante – Version Partagée</title>
+  <style>
+    /* --- CSS GLOBAL --- */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, #020617);
+      color: #e5e7eb;
+      overflow: hidden;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* --- FENÊTRE DE CONSENTEMENT --- */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.95);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 20px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(56, 189, 248, 0.2);
+      border: 1px solid #334155;
+    }
+
+    .modal-content h2 { margin-top: 0; color: #38bdf8; }
+    .modal-text { margin-bottom: 30px; line-height: 1.6; color: #cbd5e1; }
+    
+    .btn-group { display: flex; gap: 20px; justify-content: center; }
+    
+    .btn-consent {
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.2s;
+    }
+    .btn-consent:hover { transform: scale(1.05); }
+    .accept { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .deny { background: #ef4444; color: white; }
+
+    /* --- APPLICATION PRINCIPALE --- */
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 92%;
+      max-width: 960px;
+      height: 92vh;
+      margin: 4vh auto;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 60px rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.05);
+      overflow: hidden;
+    }
+
+    /* --- EN-TÊTE & ONGLETS --- */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      padding-right: 20px;
+    }
+
+    .tabs { display: flex; }
+
+    .tab {
+      padding: 16px 24px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: color 0.3s;
+    }
+
+    .tab:hover { color: #e2e8f0; }
+    
+    .tab.active {
+      color: #38bdf8;
+      border-bottom: 2px solid #38bdf8;
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    /* --- BOUTON MUTE --- */
+    .mute-btn {
+      background: none;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .mute-btn:hover { background: #334155; color: white; }
+    .mute-btn.muted { color: #ef4444; border-color: #ef4444; }
+
+    /* --- INDICATEUR DE CONNEXION --- */
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-right: 15px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.connected { background: #10b981; }
+
+    /* --- VUES --- */
+    .view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .view.active { display: flex; }
+
+    /* --- CHAT --- */
+    .chat {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 15px;
+      line-height: 1.5;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      animation: popIn 0.3s ease;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @keyframes popIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .user { align-self: flex-end; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-bottom-right-radius: 2px; }
+    .ai { align-self: flex-start; background: #334155; color: #f1f5f9; border-bottom-left-radius: 2px; }
+
+    .input-zone {
+      display: flex;
+      gap: 12px;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid #334155;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+    input:focus { border-color: #38bdf8; }
+
+    button.send-btn {
+      padding: 0 24px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button.send-btn:hover { opacity: 0.9; }
+    button.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* --- SUCCÈS --- */
+    .achievements-grid {
+      padding: 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.3s;
+      opacity: 0.5;
+      filter: grayscale(1);
+    }
+
+    .card.unlocked {
+      opacity: 1;
+      filter: grayscale(0);
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border-color: #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .card-icon { font-size: 40px; margin-bottom: 10px; }
+    .card-title { font-weight: bold; font-size: 14px; color: #e2e8f0; }
+    .card-status { font-size: 12px; margin-top: 5px; color: #94a3b8; }
+    .card.unlocked .card-status { color: #4ade80; }
+
+    /* --- PARAMÈTRES --- */
+    .panel { padding: 40px; display: flex; flex-direction: column; gap: 20px; align-items: flex-start; overflow-y: auto; }
+    
+    button.danger {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .info-box {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 15px;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<audio id="bgMusic" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+</audio>
+<audio id="msgSound">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_ff2d128913.mp3?filename=pop-1-35897.mp3" type="audio/mpeg">
+</audio>
+<audio id="winSound">
+  <source src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c153e2.mp3?filename=success-1-6297.mp3" type="audio/mpeg">
+</audio>
+
+<div id="overlay">
+  <div class="modal-content" id="modalBox">
+    <h2>⚠️ Initialisation du Système</h2>
+    <p class="modal-text">
+      Ceci est une expérience d'Intelligence Artificielle partagée.<br>
+      Toutes les connaissances sont partagées entre tous les utilisateurs.<br>
+      En entrant, vous acceptez de participer à l'apprentissage collaboratif de l'IA.
+    </p>
+    <div class="btn-group">
+      <button class="btn-consent deny" onclick="denyAccess()">Refuser</button>
+      <button class="btn-consent accept" onclick="grantAccess()">J'accepte</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="header-bar">
+    <div class="tabs">
+      <div class="tab active" onclick="openTab(0)">💬 Discussion</div>
+      <div class="tab" onclick="openTab(1)">🏆 Succès</div>
+      <div class="tab" onclick="openTab(2)">⚙️ Paramètres</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <div class="status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connexion...</span>
+      </div>
+      <button id="muteToggle" class="mute-btn" onclick="toggleMute()" title="Couper le son">🔊</button>
+    </div>
+  </div>
+
+  <div class="view active">
+    <div class="chat" id="chat">
+      <div class="message ai">Bonjour ! Je suis une IA collaborative. Tout ce que tu m'apprends sera partagé avec tous les utilisateurs ! 🌍</div>
+    </div>
+    <div class="input-zone">
+      <input id="input" placeholder="Écris quelque chose..." autocomplete="off" onkeydown="if(event.key==='Enter') send()">
+      <button class="send-btn" id="sendBtn" onclick="send()">Envoyer</button>
+    </div>
+  </div>
+
+  <div class="view" id="achievementsView">
+    <div class="achievements-grid" id="achievementsGrid"></div>
+  </div>
+
+  <div class="view panel">
+    <h2>📊 Statistiques Globales</h2>
+    <div class="info-box">
+      <strong>Connaissances totales :</strong> <span id="totalKnowledge">0</span><br>
+      <strong>Tes contributions :</strong> <span id="myContributions">0</span>
+    </div>
+    
+    <h2 style="margin-top: 30px;">🗑️ Gestion de la mémoire</h2>
+    <p>⚠️ Attention : Cette action effacera TOUTES les connaissances de l'IA pour TOUS les utilisateurs !</p>
+    <button class="danger" onclick="resetAll()">Réinitialiser la mémoire globale</button>
+  </div>
+</div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+  // ========================================
+  // CONFIGURATION FIREBASE - TES CLÉS SONT DÉJÀ INTÉGRÉES ! ✅
+  // ========================================
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getDatabase, ref, set, get, push, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlciWpHJ4bh8ztK2MqCXag_L0-ojwrSII",
+    authDomain: "naivy-26f46.firebaseapp.com",
+    databaseURL: "https://naivy-26f46-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "naivy-26f46",
+    storageBucket: "naivy-26f46.firebasestorage.app",
+    messagingSenderId: "827187216169",
+    appId: "1:827187216169:web:94aed1f67620ce87fac138"
+  };
+
+  // Initialisation Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // ========================================
+  // VARIABLES GLOBALES
+  // ========================================
+  let memory = [];
+  let myStats = JSON.parse(localStorage.getItem("my_stats") || '{"visits":0,"learned":0}');
+  myStats.visits++;
+  localStorage.setItem("my_stats", JSON.stringify(myStats));
+
+  let waiting = false;
+  let pending = "";
+  let isMuted = false;
+  let isConnected = false;
+
+  window.memory = memory;
+  window.myStats = myStats;
+
+  // ========================================
+  // CHARGEMENT DES DONNÉES FIREBASE
+  // ========================================
+  const memoryRef = ref(database, 'memory');
+  
+  onValue(memoryRef, (snapshot) => {
+    const data = snapshot.val();
+    memory = data ? Object.values(data) : [];
+    window.memory = memory;
+    
+    isConnected = true;
+    updateConnectionStatus();
+    
+    console.log(`✅ Mémoire chargée : ${memory.length} connaissances`);
+  }, (error) => {
+    console.error("❌ Erreur Firebase:", error);
+    isConnected = false;
+    updateConnectionStatus();
+  });
+
+  // ========================================
+  // FONCTIONS UTILITAIRES
+  // ========================================
+  function updateConnectionStatus() {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    
+    if (isConnected) {
+      dot.classList.add('connected');
+      text.textContent = `Connecté (${memory.length} connaissances)`;
+    } else {
+      dot.classList.remove('connected');
+      text.textContent = 'Déconnecté';
+    }
+  }
+
+  window.grantAccess = function() {
+    document.getElementById('overlay').style.display = 'none';
+    let bg = document.getElementById('bgMusic');
+    bg.volume = 0.3;
+    bg.play().catch(e => console.log("Lecture bloquée"));
+  };
+
+  window.denyAccess = function() {
+    let box = document.getElementById('modalBox');
+    box.innerHTML = "<h1 style='color:red; font-size:50px'>⛔ ACCÈS REFUSÉ</h1><p>Vous ne pouvez pas entrer dans le programme.</p>";
+  };
+
+  window.playSound = function(id) {
+    if (isMuted) return;
+    const sound = document.getElementById(id);
+    sound.currentTime = 0;
+    sound.play();
+  };
+
+  window.toggleMute = function() {
+    isMuted = !isMuted;
+    const bg = document.getElementById('bgMusic');
+    const btn = document.getElementById('muteToggle');
+    
+    if (isMuted) {
+      bg.pause();
+      btn.textContent = "🔇";
+      btn.classList.add('muted');
+    } else {
+      bg.play();
+      btn.textContent = "🔊";
+      btn.classList.remove('muted');
+    }
+  };
+
+  // ========================================
+  // LOGIQUE IA
+  // ========================================
+  function normalize(t) {
+    return t.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9+\-*/(). ]/g,"");
+  }
+
+  function similarity(a, b) {
+    let l = Math.max(a.length, b.length);
+    let s = 0;
+    for(let i = 0; i < Math.min(a.length, b.length); i++) {
+      if(a[i] == b[i]) s++;
+    }
+    return s / l;
+  }
+
+  function find(q) {
+    q = normalize(q);
+    for(let m of memory) {
+      if(similarity(q, normalize(m.q)) > 0.75) return m;
+    }
+    return null;
+  }
+
+  function isMath(q) {
+    return /^[0-9+\-*/(). ]+$/.test(q);
+  }
+
+  function add(text, cls) {
+    let d = document.createElement('div');
+    d.className = 'message ' + cls;
+    d.textContent = text;
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  window.send = async function() {
+    let t = input.value.trim(); 
+    if (!t || !isConnected) return;
+    
+    playSound('msgSound');
+    add(t, 'user'); 
+    input.value = '';
+
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+
+    // Mode Calculatrice
+    if (isMath(t)) {
+      try { 
+        add(eval(t).toString(), 'ai');
+        btn.disabled = false;
+        return; 
+      } catch {}
+    }
+
+    // Mode Apprentissage
+    if (waiting) {
+      const newEntry = { q: pending, a: t };
+      
+      const newMemoryRef = push(ref(database, 'memory'));
+      await set(newMemoryRef, newEntry);
+      
+      myStats.learned++;
+      localStorage.setItem("my_stats", JSON.stringify(myStats));
+      
+      add("Merci ! J'ai appris et partagé cette information avec tout le monde ! 🌟", 'ai');
+      playSound('winSound');
+      waiting = false;
+      updateAchievements();
+      btn.disabled = false;
+      return;
+    }
+
+    // Recherche réponse
+    let f = find(t);
+    if (f) {
+      add(f.a, 'ai');
+    } else {
+      add("Je ne connais pas la réponse. Peux-tu m'apprendre ? Ta réponse sera partagée avec tous ! 📚", 'ai');
+      waiting = true;
+      pending = t;
+    }
+    
+    btn.disabled = false;
+  };
+
+  // ========================================
+  // SUCCÈS
+  // ========================================
+  window.updateAchievements = function() {
+    const grid = document.getElementById('achievementsGrid');
+    grid.innerHTML = '';
+
+    const list = [
+      { t: "Premier Contact", desc: "Lancer l'IA 1 fois", icon: "👋", ok: myStats.visits >= 1 },
+      { t: "Habitué", desc: "Lancer l'IA 3 fois", icon: "🔄", ok: myStats.visits >= 3 },
+      { t: "Professeur", desc: "Apprendre 1 chose", icon: "🎓", ok: myStats.learned >= 1 },
+      { t: "Encyclopédie", desc: "Apprendre 10 choses", icon: "🧠", ok: myStats.learned >= 10 },
+      { t: "Sage", desc: "Apprendre 50 choses", icon: "🦉", ok: myStats.learned >= 50 }
+    ];
+
+    list.forEach(a => {
+      let card = document.createElement('div');
+      card.className = 'card' + (a.ok ? ' unlocked' : '');
+      card.innerHTML = `
+        <div class="card-icon">${a.icon}</div>
+        <div class="card-title">${a.t}</div>
+        <div class="card-status">${a.ok ? 'DÉVERROUILLÉ' : 'VERROUILLÉ'}</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    document.getElementById('totalKnowledge').textContent = memory.length;
+    document.getElementById('myContributions').textContent = myStats.learned;
+  };
+
+  window.openTab = function(i) {
+    document.querySelectorAll('.tab').forEach((t, n) => t.classList.toggle('active', n === i));
+    document.querySelectorAll('.view').forEach((v, n) => v.classList.toggle('active', n === i));
+    if (i === 1) updateAchievements();
+  };
+
+  window.resetAll = async function() {
+    if (confirm("⚠️ ATTENTION : Cela effacera TOUTE la mémoire partagée pour TOUS les utilisateurs ! Es-tu sûr ?")) {
+      await remove(ref(database, 'memory'));
+      localStorage.clear();
+      location.reload();
+    }
+  };
+
+  // ========================================
+  // PARTICULES
+  // ========================================
+  const c = document.getElementById('particles');
+  const ctx = c.getContext('2d');
+  let p = [];
+  
+  function resize() { 
+    c.width = innerWidth; 
+    c.height = innerHeight; 
+  }
+  
+  window.onresize = resize; 
+  resize();
+
+  for(let i = 0; i < 60; i++) {
+    p.push({
+      x: Math.random() * c.width,
+      y: Math.random() * c.height,
+      v: 0.5 + Math.random(),
+      s: Math.random() * 2
+    });
+  }
+
+  function anim() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+    p.forEach(o => {
+      o.y -= o.v;
+      if (o.y < 0) o.y = c.height;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    requestAnimationFrame(anim);
+  }
+  anim();
+
+</script>
+</body>
+</html>
