@@ -340,9 +340,8 @@
       <strong>Tes contributions :</strong> <span id="myContributions">0</span>
     </div>
     
-    <h2 style="margin-top: 30px;">🗑️ Gestion de la mémoire</h2>
-    <p>⚠️ Attention : Cette action effacera TOUTES les connaissances de l'IA pour TOUS les utilisateurs !</p>
-    <button class="danger" onclick="resetAll()">Réinitialiser la mémoire globale</button>
+    <h2 style="margin-top: 30px;">ℹ️ À propos</h2>
+    <p>Cette IA apprend grâce aux contributions de tous les utilisateurs. Chaque nouvelle connaissance enrichit l'intelligence collective ! 🌍</p>
   </div>
 </div>
 
@@ -579,14 +578,6 @@
     document.querySelectorAll('.tab').forEach((t, n) => t.classList.toggle('active', n === i));
     document.querySelectorAll('.view').forEach((v, n) => v.classList.toggle('active', n === i));
     if (i === 1) updateAchievements();
-  };
-
-  window.resetAll = async function() {
-    if (confirm("⚠️ ATTENTION : Cela effacera TOUTE la mémoire partagée pour TOUS les utilisateurs ! Es-tu sûr ?")) {
-      await remove(ref(database, 'memory'));
-      localStorage.clear();
-      location.reload();
-    }
   };
 
   // ========================================
