@@ -345,10 +345,9 @@
   </div>
 </div>
 
-<!-- FIREBASE SDK -->
 <script type="module">
   // ========================================
-  // CONFIGURATION FIREBASE - TES CLÉS SONT DÉJÀ INTÉGRÉES ! ✅
+  // CONFIGURATION FIREBASE
   // ========================================
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
   import { getDatabase, ref, set, get, push, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
@@ -374,6 +373,9 @@
   let myStats = JSON.parse(localStorage.getItem("my_stats") || '{"visits":0,"learned":0}');
   myStats.visits++;
   localStorage.setItem("my_stats", JSON.stringify(myStats));
+  
+  // Variable pour le succès "Tchatcheur" (10 minutes)
+  let sessionStart = Date.now();
 
   let waiting = false;
   let pending = "";
@@ -382,7 +384,7 @@
 
   window.memory = memory;
   window.myStats = myStats;
-
+  
   // ========================================
   // CHARGEMENT DES DONNÉES FIREBASE
   // ========================================
@@ -545,18 +547,28 @@
   };
 
   // ========================================
-  // SUCCÈS
+  // SUCCÈS (COMPLETS)
   // ========================================
   window.updateAchievements = function() {
     const grid = document.getElementById('achievementsGrid');
     grid.innerHTML = '';
 
+    // Calcul du temps écoulé pour le succès "Tchatcheur" (en millisecondes)
+    const timeSpent = Date.now() - sessionStart;
+    const tenMinutes = 10 * 60 * 1000; // 600 000 ms
+
     const list = [
       { t: "Premier Contact", desc: "Lancer l'IA 1 fois", icon: "👋", ok: myStats.visits >= 1 },
       { t: "Habitué", desc: "Lancer l'IA 3 fois", icon: "🔄", ok: myStats.visits >= 3 },
+      { t: "Vétéran", desc: "Se connecter 10 fois", icon: "🤝", ok: myStats.visits >= 10 }, 
+      
       { t: "Professeur", desc: "Apprendre 1 chose", icon: "🎓", ok: myStats.learned >= 1 },
       { t: "Encyclopédie", desc: "Apprendre 10 choses", icon: "🧠", ok: myStats.learned >= 10 },
-      { t: "Sage", desc: "Apprendre 50 choses", icon: "🦉", ok: myStats.learned >= 50 }
+      { t: "Sage", desc: "Apprendre 50 choses", icon: "🦉", ok: myStats.learned >= 50 },
+      { t: "Grand Maître", desc: "Apprendre 100 choses", icon: "🔮", ok: myStats.learned >= 100 }, 
+      { t: "Omniscient", desc: "Apprendre 1000 choses", icon: "🌌", ok: myStats.learned >= 1000 }, 
+      
+      { t: "Tchatcheur", desc: "Session de 10 minutes", icon: "⏱️", ok: timeSpent >= tenMinutes } 
     ];
 
     list.forEach(a => {
