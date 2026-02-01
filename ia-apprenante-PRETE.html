@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <meta charset="UTF-8">
   <title>IA Apprenante – Version Partagée</title>
   <style>
@@ -15,7 +17,11 @@
       color: #e5e7eb;
       overflow: hidden;
     }
-
+  .container {
+    width: 90%;       /* prend 90% de la largeur de l’écran */
+    max-width: 1200px; /* limite sur grand écran */
+    margin: auto;     /* centre le contenu */
+  }
     canvas {
       position: fixed;
       inset: 0;
